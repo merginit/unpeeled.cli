@@ -1,0 +1,28 @@
+{
+  "name": "@merginit/brandpeel-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Native Brand Peel CLI and npm distribution workspace",
+  "type": "module",
+  "packageManager": "npm@11.5.1",
+  "workspaces": [
+    "packages/cli"
+  ],
+  "scripts": {
+    "build": "zig build -Doptimize=ReleaseSafe",
+    "check": "npm run format:check && npm test",
+    "format": "zig fmt build.zig src",
+    "format:check": "zig fmt --check build.zig src",
+    "test": "zig build && zig build test && node --test packages/cli/test/*.test.js test/*.test.js",
+    "test:wrapper": "node --test packages/cli/test/*.test.js",
+    "pack:check": "node scripts/check-packages.js",
+    "pack:inspect": "node scripts/check-packed-files.js",
+    "version:sync": "node scripts/sync-version.js"
+  },
+  "devDependencies": {
+    "@zigc/cli": "0.16.0"
+  },
+  "engines": {
+    "node": ">=22.14.0"
+  }
+}

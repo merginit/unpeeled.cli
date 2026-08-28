@@ -1,0 +1,46 @@
+{
+  "name": "@merginit/brandpeel",
+  "version": "0.1.0",
+  "description": "Official native CLI for Brand Peel exports and the public Brand Peel API",
+  "type": "module",
+  "bin": {
+    "brandpeel": "bin/brandpeel.js"
+  },
+  "files": [
+    "bin",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "preferUnplugged": true,
+  "license": "MIT",
+  "homepage": "https://brandpeel.app",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/merginit/unpeeled.cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/merginit/unpeeled.cli/issues"
+  },
+  "keywords": [
+    "brandpeel",
+    "brand-design",
+    "design-tokens",
+    "wcag",
+    "cli",
+    "zig"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "optionalDependencies": {
+    "@merginit/brandpeel-darwin-arm64": "0.1.0",
+    "@merginit/brandpeel-darwin-x64": "0.1.0",
+    "@merginit/brandpeel-linux-arm64": "0.1.0",
+    "@merginit/brandpeel-linux-x64": "0.1.0",
+    "@merginit/brandpeel-win32-arm64": "0.1.0",
+    "@merginit/brandpeel-win32-x64": "0.1.0"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "name": "@merginit/brandpeel-linux-arm64",
+  "version": "0.1.0",
+  "description": "Brand Peel CLI native binary for linux arm64",
+  "files": [
+    "bin",
+    "README.md"
+  ],
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "preferUnplugged": true,
+  "license": "MIT",
+  "homepage": "https://brandpeel.app",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/merginit/unpeeled.cli.git"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

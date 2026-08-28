@@ -1,0 +1,99 @@
+name: Publish npm release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: darwin-arm64
+            target: aarch64-macos
+            runner: macos-latest
+          - package: darwin-x64
+            target: x86_64-macos
+            runner: macos-latest
+          - package: linux-arm64
+            target: aarch64-linux-musl
+            runner: ubuntu-latest
+          - package: linux-x64
+            target: x86_64-linux-musl
+            runner: ubuntu-latest
+          - package: win32-arm64
+            target: aarch64-windows
+            runner: windows-latest
+          - package: win32-x64
+            target: x86_64-windows
+            runner: windows-latest
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+      - name: Build native binary
+        run: zig build -Doptimize=ReleaseSafe -Dtarget=${{ matrix.target }} --prefix dist/${{ matrix.package }}
+      - name: Smoke test host binary
+        if: (matrix.package == 'darwin-arm64' && runner.arch == 'ARM64') || (matrix.package == 'darwin-x64' && runner.arch == 'X64') || (matrix.package == 'linux-x64' && runner.arch == 'X64') || (matrix.package == 'win32-x64' && runner.arch == 'X64')
+        shell: bash
+        run: dist/${{ matrix.package }}/bin/brandpeel${{ runner.os == 'Windows' && '.exe' || '' }} --version
+      - uses: actions/upload-artifact@v6
+        with:
+          name: brandpeel-${{ matrix.package }}
+          path: dist/${{ matrix.package }}/bin/brandpeel*
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - name: Use trusted-publishing compatible npm
+        run: npm install --global npm@11.5.1
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: brandpeel-*
+          path: dist
+      - run: npm ci --omit=optional
+      - name: Set package version
+        shell: bash
+        run: npm run version:sync -- "${GITHUB_REF_NAME#v}"
+      - name: Assemble native packages
+        shell: bash
+        run: node scripts/assemble-release.js
+      - run: npm test
+      - run: npm run pack:check
+      - run: npm run pack:inspect
+      - name: Inspect package contents
+        shell: bash
+        run: |
+          for package in packages/darwin-* packages/linux-* packages/win32-* packages/cli; do
+            npm pack "./$package" --dry-run
+          done
+      - name: Publish native packages
+        shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          for package in packages/darwin-arm64 packages/darwin-x64 packages/linux-arm64 packages/linux-x64 packages/win32-arm64 packages/win32-x64; do
+            npm publish "./$package" --access public --provenance
+          done
+      - name: Publish CLI wrapper
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish ./packages/cli --access public --provenance

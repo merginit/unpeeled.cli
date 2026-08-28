@@ -1,0 +1,7 @@
+.zig-cache/
+zig-out/
+node_modules/
+dist/
+packages/*/bin/brandpeel*
+*.tgz
+.DS_Store
