@@ -28,6 +28,21 @@ test("release validation uses setup-zig when npm platform packages are omitted",
   assertUsesSetupZigWithoutOptionalDependencies(releaseWorkflow);
 });
 
+test("release publishing uses protected OIDC without an npm token", () => {
+  assert.match(releaseWorkflow, /^\s{4}environment: npm-publish$/m);
+  assert.match(releaseWorkflow, /^\s{6}id-token: write$/m);
+  assert.doesNotMatch(releaseWorkflow, /NPM_TOKEN|NODE_AUTH_TOKEN/);
+  assert.match(releaseWorkflow, /npm publish .*--provenance/);
+});
+
+test("release publishing can resume after a partial publication", () => {
+  assert.match(
+    releaseWorkflow,
+    /npm view "\$\{package_name\}@\$\{package_version\}" version/,
+  );
+  assert.match(releaseWorkflow, /is already published; skipping\./);
+});
+
 test("Zig sources retain LF endings on Windows runners", () => {
   assert.match(gitAttributes, /^\*\.zig text eol=lf$/m);
   assert.match(gitAttributes, /^\*\.zig\.zon text eol=lf$/m);
