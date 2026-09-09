@@ -4,6 +4,7 @@ import test from "node:test";
 
 const ciWorkflow = await readFile(".github/workflows/ci.yml", "utf8");
 const releaseWorkflow = await readFile(".github/workflows/release.yml", "utf8");
+const gitAttributes = await readFile(".gitattributes", "utf8");
 
 function assertUsesSetupZigWithoutOptionalDependencies(workflow) {
   assert.match(workflow, /uses: mlugg\/setup-zig@v2/);
@@ -25,4 +26,9 @@ test("CI uses setup-zig when npm platform packages are omitted", () => {
 
 test("release validation uses setup-zig when npm platform packages are omitted", () => {
   assertUsesSetupZigWithoutOptionalDependencies(releaseWorkflow);
+});
+
+test("Zig sources retain LF endings on Windows runners", () => {
+  assert.match(gitAttributes, /^\*\.zig text eol=lf$/m);
+  assert.match(gitAttributes, /^\*\.zig\.zon text eol=lf$/m);
 });
