@@ -58,6 +58,9 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v6
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
       - uses: actions/setup-node@v6
         with:
           node-version: 24
@@ -69,14 +72,20 @@ jobs:
         with:
           pattern: brandpeel-*
           path: dist
-      - run: npm ci --omit=optional
+      - name: Install Node dependencies
+        run: npm ci --omit=dev --omit=optional
       - name: Set package version
         shell: bash
         run: npm run version:sync -- "${GITHUB_REF_NAME#v}"
       - name: Assemble native packages
         shell: bash
         run: node scripts/assemble-release.js
-      - run: npm test
+      - name: Build debug CLI
+        run: zig build
+      - name: Run Zig unit tests
+        run: zig build test
+      - name: Run Node tests
+        run: node --test packages/cli/test/*.test.js test/*.test.js
       - run: npm run pack:check
       - run: npm run pack:inspect
       - name: Inspect package contents

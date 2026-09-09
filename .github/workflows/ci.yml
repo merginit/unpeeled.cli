@@ -24,9 +24,18 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci --omit=optional
-      - run: npm run check
-      - run: npm run build
+      - name: Install Node dependencies
+        run: npm ci --omit=dev --omit=optional
+      - name: Check Zig formatting
+        run: zig fmt --check build.zig src
+      - name: Build debug CLI
+        run: zig build
+      - name: Run Zig unit tests
+        run: zig build test
+      - name: Run Node tests
+        run: node --test packages/cli/test/*.test.js test/*.test.js
+      - name: Build release-safe CLI
+        run: zig build -Doptimize=ReleaseSafe
       - run: ./zig-out/bin/brandpeel --version
         if: runner.os != 'Windows'
       - run: .\zig-out\bin\brandpeel.exe --version
