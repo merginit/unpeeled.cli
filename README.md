@@ -18,6 +18,20 @@ You can also run it without a global installation:
 npx @merginit/brandpeel inspect ./my-brand-export
 ```
 
+## Local releases
+
+With a local `v*` version tag and an authenticated npm account, run the
+complete release locally:
+
+```sh
+npm run release:local
+```
+
+The command checks npm first, builds all six native targets, validates the
+packed files, publishes native packages before the CLI wrapper, and resumes
+safely if a partial publication already exists. It uses a temporary staging
+copy and does not push Git refs.
+
 ## Local export commands
 
 ```sh
