@@ -13,13 +13,13 @@ pub const ExitCode = enum(u8) {
     network = 5,
 };
 
-const Options = struct {
+pub const Options = struct {
     json: bool = false,
     api_base_url: []const u8 = api.default_base_url,
     timeout_seconds: u32 = api.default_timeout_seconds,
 };
 
-const Context = struct {
+pub const Context = struct {
     allocator: std.mem.Allocator,
     io: std.Io,
     stdout: *std.Io.Writer,
@@ -47,6 +47,9 @@ const help_text =
     \\  api schema [--version 1.0.0]
     \\  api agent-info [--include all|functions|guidance]
     \\  api cli-manifest [--platform windows|macos|linux]
+    \\
+    \\MCP server:
+    \\  mcp                         Serve MCP over stdin/stdout (no --json)
     \\
     \\Global options must precede the command. The API defaults to https://brandpeel.app.
 ;
@@ -540,20 +543,34 @@ pub fn run(
         .options = options,
     };
     if (index >= arguments.len or std.mem.eql(u8, arguments[index], "--help") or std.mem.eql(u8, arguments[index], "-h")) {
-        return success(&context, "help", help_text, "{\"version\":\"0.1.0\"}");
+        return success(&context, "help", help_text, "{\"version\":\"" ++ version ++ "\"}");
     }
     if (std.mem.eql(u8, arguments[index], "--version") or std.mem.eql(u8, arguments[index], "-V")) {
-        return success(&context, "version", "brandpeel 0.1.0", "{\"version\":\"0.1.0\"}");
+        return success(&context, "version", "brandpeel " ++ version, "{\"version\":\"" ++ version ++ "\"}");
     }
 
     const command = arguments[index];
     const rest = arguments[index + 1 ..];
-    if (std.mem.eql(u8, command, "inspect")) return commandInspect(&context, rest);
-    if (std.mem.eql(u8, command, "doctor")) return commandDoctor(&context, rest);
-    if (std.mem.eql(u8, command, "export")) return commandExport(&context, rest);
-    if (std.mem.eql(u8, command, "compile-book")) return commandCompileBook(&context, rest);
-    if (std.mem.eql(u8, command, "api")) return commandApi(&context, rest);
-    return usage(&context, "Unknown Brand Peel command. Run brandpeel --help.");
+    if (std.mem.eql(u8, command, "mcp")) {
+        if (rest.len != 0 or options.json) {
+            // Never mix the one-shot JSON envelope with the protocol stream.
+            context.options.json = false;
+            return usage(&context, "mcp accepts no arguments or --json; put API options before mcp.");
+        }
+        try @import("mcp.zig").serve(init.io, stdout, options);
+        return 0;
+    }
+    return runCommand(&context, command, rest);
+}
+
+/// Shared one-shot command boundary for the terminal and MCP adapters.
+pub fn runCommand(context: *Context, command: []const u8, rest: []const []const u8) !u8 {
+    if (std.mem.eql(u8, command, "inspect")) return commandInspect(context, rest);
+    if (std.mem.eql(u8, command, "doctor")) return commandDoctor(context, rest);
+    if (std.mem.eql(u8, command, "export")) return commandExport(context, rest);
+    if (std.mem.eql(u8, command, "compile-book")) return commandCompileBook(context, rest);
+    if (std.mem.eql(u8, command, "api")) return commandApi(context, rest);
+    return usage(context, "Unknown Brand Peel command. Run brandpeel --help.");
 }
 
 test "output parser requires a token format" {

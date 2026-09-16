@@ -200,6 +200,11 @@ pub fn generateTokens(
     const light = parsed.value.object.get("light") orelse return error.InvalidTheme;
     const dark = parsed.value.object.get("dark") orelse return error.InvalidTheme;
     if (light != .object or dark != .object) return error.InvalidTheme;
+    // Desktop tokens are strings. Reject nested values before the recursive JSON
+    // serializer so a corrupt export cannot crash a long-lived MCP connection.
+    for ([_]std.json.ObjectMap{ light.object, dark.object }) |mode| {
+        for (mode.values()) |value| if (value != .string) return error.InvalidTheme;
+    }
     const light_keys = try sortedKeys(allocator, light.object);
     const dark_keys = try sortedKeys(allocator, dark.object);
 
