@@ -9,7 +9,52 @@ permissions:
   contents: read
 
 jobs:
+  release_check:
+    name: Check npm publication
+    runs-on: ubuntu-latest
+    outputs:
+      release_needed: ${{ steps.check.outputs.release_needed }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - name: Check whether this version is already published
+        id: check
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          packages=(
+            packages/darwin-arm64
+            packages/darwin-x64
+            packages/linux-arm64
+            packages/linux-x64
+            packages/win32-arm64
+            packages/win32-x64
+            packages/cli
+          )
+          release_needed=false
+
+          for package_path in "${packages[@]}"; do
+            package_name="$(node -p "require('./${package_path}/package.json').name")"
+            if npm view "${package_name}@${version}" version >/dev/null 2>&1; then
+              echo "${package_name}@${version} is already published."
+            else
+              echo "${package_name}@${version} is not published."
+              release_needed=true
+            fi
+          done
+
+          echo "release_needed=${release_needed}" >> "$GITHUB_OUTPUT"
+          if [[ "${release_needed}" == false ]]; then
+            echo "All packages for ${version} are already published; skipping release build."
+          fi
+
   build:
+    needs: release_check
+    if: needs.release_check.outputs.release_needed == 'true'
     strategy:
       fail-fast: false
       matrix:
