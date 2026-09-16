@@ -95,6 +95,9 @@ fn fetchTask(
     const result = client.fetch(.{
         .location = .{ .url = url },
         .method = .GET,
+        // Each API call uses a fresh client, so connection reuse provides no benefit.
+        // Zig 0.16 can hang while draining keep-alive responses on macOS runners.
+        .keep_alive = false,
         .redirect_behavior = @enumFromInt(5),
         .response_writer = &response_writer,
         .headers = .{
