@@ -78,6 +78,10 @@ const Event = union(enum) {
     timed_out: void,
 };
 
+const TimeoutControl = struct {
+    stop: std.atomic.Value(bool) = .init(false),
+};
+
 fn fetchTask(
     allocator: std.mem.Allocator,
     io: std.Io,
@@ -95,9 +99,6 @@ fn fetchTask(
     const result = client.fetch(.{
         .location = .{ .url = url },
         .method = .GET,
-        // Each API call uses a fresh client, so connection reuse provides no benefit.
-        // Zig 0.16 can hang while draining keep-alive responses on macOS runners.
-        .keep_alive = false,
         .redirect_behavior = @enumFromInt(5),
         .response_writer = &response_writer,
         .headers = .{
@@ -116,8 +117,19 @@ fn fetchTask(
     return .{ .status = status, .body = body };
 }
 
-fn timeoutTask(io: std.Io, seconds: u32) void {
-    io.sleep(.fromSeconds(seconds), .awake) catch {};
+fn timeoutTask(control: *TimeoutControl, io: std.Io, seconds: u32) void {
+    const deadline = std.Io.Clock.Timestamp.fromNow(io, .{
+        .raw = .fromSeconds(@intCast(seconds)),
+        .clock = .awake,
+    });
+    // Keep sleeps short: on macOS runners, cancellation can otherwise wait for
+    // the full timeout after the HTTP task has already completed.
+    while (!control.stop.load(.acquire)) {
+        const remaining = deadline.durationFromNow(io);
+        if (remaining.raw.nanoseconds <= 0) return;
+        const slice = @min(remaining.raw.nanoseconds, @as(i96, 100 * std.time.ns_per_ms));
+        io.sleep(.fromNanoseconds(slice), .awake) catch return;
+    }
 }
 
 pub fn fetch(
@@ -128,9 +140,11 @@ pub fn fetch(
 ) !Response {
     var events: [2]Event = undefined;
     var select = std.Io.Select(Event).init(io, &events);
+    var timeout_control: TimeoutControl = .{};
     select.async(.fetched, fetchTask, .{ allocator, io, url });
-    select.async(.timed_out, timeoutTask, .{ io, timeout_seconds });
+    select.async(.timed_out, timeoutTask, .{ &timeout_control, io, timeout_seconds });
     const event = try select.await();
+    timeout_control.stop.store(true, .release);
     switch (event) {
         .timed_out => {
             select.cancelDiscard();
