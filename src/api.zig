@@ -141,8 +141,10 @@ pub fn fetch(
     var events: [2]Event = undefined;
     var select = std.Io.Select(Event).init(io, &events);
     var timeout_control: TimeoutControl = .{};
-    select.async(.fetched, fetchTask, .{ allocator, io, url });
-    select.async(.timed_out, timeoutTask, .{ &timeout_control, io, timeout_seconds });
+    // HTTP and timer operations both block. Use concurrent so a full async
+    // pool cannot run the timer inline in the MCP worker.
+    try select.concurrent(.fetched, fetchTask, .{ allocator, io, url });
+    try select.concurrent(.timed_out, timeoutTask, .{ &timeout_control, io, timeout_seconds });
     const event = try select.await();
     timeout_control.stop.store(true, .release);
     switch (event) {
